@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block title %}Статистика — {{ item.name }}{% endblock %}
+{% block content %}
+<section class="panel">
+  <div class="panel-header">
+    <h2>Позиция: {{ item.name }}</h2>
+    <a class="btn small" href="{{ url_for('rental') }}">Назад к аренде</a>
+  </div>
+
+  <div class="grid two">
+    <div>
+      <ul class="list">
+        <li>Всего аренд: {{ total_rentals }}</li>
+        <li>Активных: {{ active_count }}</li>
+        <li>Закрытых: {{ closed_count }}</li>
+        <li>Сумма по всем: {{ "%.2f"|format(total_sum) }}</li>
+        <li>Начата последняя: {{ last_started_at or '-' }}</li>
+      </ul>
+    </div>
+    <div>
+      <ul class="list">
+        <li>Часов всего (закрытые): {{ "%.2f"|format(total_hours) }}</li>
+        <li>Средняя длительность (ч): {{ "%.2f"|format(avg_hours) }}</li>
+        <li>Количество продлений: {{ ext_count }}</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3>Топ клиентов</h3>
+  <form method="get" action="{{ url_for('rental_item_detail', item_id=item.id) }}" class="form-inline" style="margin:8px 0">
+    <label>c
+      <input type="date" name="from" value="{{ filter_from }}">
+    </label>
+    <label>по
+      <input type="date" name="to" value="{{ filter_to }}">
+    </label>
+    <button type="submit" class="btn small">Фильтр</button>
+    <a href="{{ url_for('rental_item_detail', item_id=item.id) }}" class="btn small" style="background:#0f162e;border-color:#213064">Сброс</a>
+    <span class="chip">Сумма за период: {{ "%.2f"|format(period_sum or 0) }} ₽</span>
+  </form>
+  <table class="table">
+    <thead><tr><th>Телефон</th><th class="num">Кол-во</th><th class="num">Сумма</th></tr></thead>
+    <tbody>
+      {% for phone, rec in top_renters %}
+        <tr><td>{{ phone }}</td><td class="num">{{ rec.count }}</td><td class="num">{{ "%.2f"|format(rec.sum) }}</td></tr>
+      {% else %}
+        <tr><td colspan="3" class="muted">Нет данных.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <h3>История</h3>
+  <table class="table">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Телефон</th>
+        <th>Начало</th>
+        <th>Завершено</th>
+        <th class="num">Сумма</th>
+        <th>Платежи</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in history %}
+        <tr>
+          <td>{{ r.id }}</td>
+          <td>{{ r.renter_phone or '-' }}</td>
+          <td>{{ r.started_at|msk('%d.%m.%Y %H:%M') if r.started_at else '-' }}</td>
+          <td>{{ r.returned_at|msk('%d.%m.%Y %H:%M') if r.returned_at else '-' }}</td>
+          <td class="num">{{ "%.2f"|format(r.total_price or 0) }}</td>
+          <td>
+            <ul class="list">
+              {% for c in r.charges %}
+                <li>{{ c.created_at|msk('%d.%m.%Y %H:%M') }} — {{ c.label or 'Оплата' }}: {{ "%.2f"|format(c.amount) }}</li>
+              {% endfor %}
+            </ul>
+          </td>
+        </tr>
+      {% else %}
+        <tr><td colspan="6" class="muted">Нет данных.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

@@ -1,0 +1,487 @@
+{% extends "base.html" %}
+{% block title %}Касса — Продажи{% endblock %}
+{% block content %}
+<section class="panel pos-section">
+  <h2 class="only-mobile">Касса</h2>
+  <h2 class="only-desktop">Касса <span class="badge">Быстрый поиск и оформление</span></h2>
+  <div class="pos-header-controls">
+    <form method="get" class="pos-search-form">
+      <input type="text" name="q" 
+             placeholder="Поиск по названию или штрихкоду" 
+             value="{{ q }}" 
+             autocapitalize="none" 
+             autocomplete="off" 
+             autocorrect="off" 
+             inputmode="search" 
+             enterkeyhint="search"
+             autofocus>
+      <button type="submit" class="btn">Поиск</button>
+    </form>
+    <button type="button" class="pos-calc-btn" onclick="toggleCalculator()" title="Открыть калькулятор">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect x="4" y="3" width="16" height="18" rx="2" stroke="currentColor" stroke-width="2"/>
+        <path d="M8 7h8M8 12h8M8 17h8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+    </button>
+  </div>
+    
+  <!-- Калькулятор -->
+  <div class="calculator" id="calculator">
+    <div class="calculator-header">
+      <span>Калькулятор</span>
+      <button type="button" class="calculator-close" onclick="toggleCalculator()">×</button>
+    </div>
+      <div class="calculator-screen">
+        <input type="text" id="calcScreen" readonly>
+      </div>
+      <div class="calculator-buttons">
+        <button type="button" onclick="clearCalc()">C</button>
+        <button type="button" onclick="deleteChar()">←</button>
+        <button type="button" onclick="addChar('/')">/</button>
+        <button type="button" onclick="addChar('7')">7</button>
+        <button type="button" onclick="addChar('8')">8</button>
+        <button type="button" onclick="addChar('9')">9</button>
+        <button type="button" onclick="addChar('*')">×</button>
+        <button type="button" onclick="addChar('4')">4</button>
+        <button type="button" onclick="addChar('5')">5</button>
+        <button type="button" onclick="addChar('6')">6</button>
+        <button type="button" onclick="addChar('-')">-</button>
+        <button type="button" onclick="addChar('1')">1</button>
+        <button type="button" onclick="addChar('2')">2</button>
+        <button type="button" onclick="addChar('3')">3</button>
+        <button type="button" onclick="addChar('+')">+</button>
+        <button type="button" onclick="addChar('0')">0</button>
+        <button type="button" onclick="addChar('.')">.</button>
+        <button type="button" class="equals" onclick="calculate()">=</button>
+      </div>
+    </div>
+  </div>
+  <div class="tabs">
+    <a href="{{ url_for('pos', q=q, tab='products') }}" class="{% if tab != 'cart' %}active{% endif %}">Товары</a>
+    <a href="{{ url_for('pos', q=q, tab='cart') }}" class="{% if tab == 'cart' %}active{% endif %}">Корзина {% if cart_count %}<span class="badge">{{ cart_count }}</span>{% endif %}</a>
+  </div>
+
+  {% if tab == 'cart' %}
+  <div class="panel">
+    <!-- Desktop cart table -->
+    <div class="only-desktop">
+      <div class="panel-header">
+        <h3>Корзина</h3>
+        <form method="post" action="{{ url_for('pos_cart_clear') }}" class="form-inline">
+          {{ csrf_field() }}
+          <button type="submit" class="btn danger small">Очистить</button>
+        </form>
+      </div>
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Наименование</th>
+            <th class="num">Кол-во</th>
+            <th class="num">Цена, ₽</th>
+            <th class="num">Сумма, ₽</th>
+            <th>Действия</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for it in cart %}
+          <tr>
+            <td>{{ it.product.name }}</td>
+            <td class="num">{{ it.quantity }}</td>
+            <td class="num">{{ "%.2f"|format(it.final) }} ₽</td>
+            <td class="num">{{ "%.2f"|format(it.line_total) }} ₽</td>
+            <td class="cart-actions" style="display:flex; gap:8px; align-items:center">
+              <form method="post" action="{{ url_for('pos_cart_update') }}" class="form-inline" style="margin:0">
+                {{ csrf_field() }}
+                <input type="hidden" name="index" value="{{ loop.index0 }}">
+                <input type="number" name="quantity" min="0" value="{{ it.quantity }}" style="width:60px">
+                <button type="submit" class="btn small">Обновить</button>
+              </form>
+              <form method="post" action="{{ url_for('pos_cart_update') }}" class="form-inline" style="margin:0">
+                {{ csrf_field() }}
+                <input type="hidden" name="index" value="{{ loop.index0 }}">
+                <input type="hidden" name="quantity" value="0">
+                <button type="submit" class="btn danger small">Удалить</button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+        <tfoot>
+          <tr>
+            <th colspan="3" style="text-align:right">Итого:</th>
+            <th class="num">{{ "%.2f"|format(subtotal) }} ₽</th>
+            <th>
+              <form method="post" action="{{ url_for('pos_cart_checkout') }}" class="only-desktop" style="display:flex; gap:8px; justify-content:flex-end; margin:0">
+                {{ csrf_field() }}
+                <input type="hidden" name="cash_received" value="{{ "%.2f"|format(subtotal) }}">
+                <button type="submit" class="btn btn-pay">Оплатить</button>
+              </form>
+            </th>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+
+    <!-- Mobile cart view -->
+    <div class="only-mobile">
+      <div class="pos-cart-clear">
+        <h3>Корзина</h3>
+        <form method="post" action="{{ url_for('pos_cart_clear') }}">
+          {{ csrf_field() }}
+          <button type="submit" class="btn danger">Очистить</button>
+        </form>
+      </div>
+      
+      <div class="pos-cart-items">
+        {% for it in cart %}
+        <div class="pos-cart-item">
+          <div class="pos-cart-item-top">
+            <div class="pos-cart-item-name">{{ it.product.name }}</div>
+            <div class="pos-cart-item-price">{{ "%.2f"|format(it.line_total) }} ₽</div>
+          </div>
+          <div class="pos-cart-item-actions">
+            <form method="post" action="{{ url_for('pos_cart_update') }}" class="cart-item-quantity">
+              {{ csrf_field() }}
+              <input type="hidden" name="index" value="{{ loop.index0 }}">
+              <input type="number" name="quantity" min="0" value="{{ it.quantity }}">
+              <button type="submit" class="btn">Обновить</button>
+            </form>
+            <form method="post" action="{{ url_for('pos_cart_update') }}" class="cart-item-remove">
+              {{ csrf_field() }}
+              <input type="hidden" name="index" value="{{ loop.index0 }}">
+              <input type="hidden" name="quantity" value="0">
+              <button type="submit" class="btn danger">Удалить</button>
+            </form>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    <!-- Mobile checkout form -->
+    <form method="post" action="{{ url_for('pos_cart_checkout') }}" class="only-mobile pos-cart-checkout">
+      {{ csrf_field() }}
+      <div class="pos-cart-checkout-row">
+        <div class="pos-cart-checkout-total" data-total="{{ "%.2f"|format(subtotal) }}">Итого: {{ "%.2f"|format(subtotal) }} ₽</div>
+      </div>
+        <div class="pos-cart-checkout-inputs">
+          <input type="text" 
+                 inputmode="decimal" 
+                 name="cash_received" 
+                 id="cashReceivedMobile" 
+                 placeholder="Сумма наличными">
+          <div style="display:flex; gap:8px;">
+            <button type="submit" class="btn btn-pay">Оплатить</button>
+          </div>
+        </div>
+      <div class="pos-cart-checkout-change" id="changeViewMobile">Сдача: 0.00 ₽</div>
+    </form>
+
+    <!-- Desktop checkout form -->
+    <form method="post" action="{{ url_for('pos_cart_checkout') }}" class="form-inline only-desktop" style="margin-top:16px">
+      {{ csrf_field() }}
+      <label>Наличными
+        <input type="number" step="0.01" name="cash_received" id="cashReceived" value="" placeholder="0.00">
+      </label>
+      <div class="badge" id="changeView" data-total="{{ "%.2f"|format(subtotal) }}">Сдача: 0.00 ₽</div>
+      <div style="display:flex; gap:8px; align-items:center;">
+        <button type="submit" class="btn btn-pay">Оплатить</button>
+      </div>
+    </form>
+    <script>
+      // Инициализация калькулятора
+      const initCalculator = function() {
+        const calculator = document.getElementById('calculator');
+        if (!calculator) return;
+        
+        // Убедимся, что калькулятор изначально скрыт
+        calculator.classList.remove('open');
+        
+        // Очистим поле ввода
+        const screen = document.getElementById('calcScreen');
+        if (screen) {
+          screen.value = '';
+        }
+      };
+      
+      document.addEventListener('DOMContentLoaded', function() {
+        // Инициализируем калькулятор
+        initCalculator();
+        
+        const mobileInput = document.getElementById('cashReceivedMobile');
+        const desktopInput = document.getElementById('cashReceived');
+        const mobileChangeView = document.getElementById('changeViewMobile');
+        const desktopChangeView = document.getElementById('changeView');
+        
+        function calculateChange(input, display) {
+          const total = parseFloat(display.dataset.total) || 0;
+          const received = parseFloat(input.value) || 0;
+          const change = received - total;
+          display.textContent = `Сдача: ${change.toFixed(2)} ₽`;
+        }
+
+        if (mobileInput) {
+          mobileInput.addEventListener('input', function() {
+            calculateChange(mobileInput, mobileChangeView);
+          });
+        }
+
+        if (desktopInput) {
+          desktopInput.addEventListener('input', function() {
+            calculateChange(desktopInput, desktopChangeView);
+          });
+        }
+      });
+
+      // Глобальные функции калькулятора 
+      window.toggleCalculator = function() {
+        const calc = document.getElementById('calculator');
+        if (calc) {
+          calc.classList.toggle('open');
+          if (calc.classList.contains('open')) {
+            const screen = document.getElementById('calcScreen');
+            if (screen) screen.focus();
+          }
+        }
+      };
+
+      window.clearCalc = function() {
+        const screen = document.getElementById('calcScreen');
+        if (screen) screen.value = '';
+      };
+
+      window.deleteChar = function() {
+        const screen = document.getElementById('calcScreen');
+        if (screen) screen.value = screen.value.slice(0, -1);
+      };
+
+      window.addChar = function(char) {
+        const screen = document.getElementById('calcScreen');
+        if (screen) screen.value += char;
+      };
+
+      window.calculate = function() {
+        const screen = document.getElementById('calcScreen');
+        if (!screen) return;
+        
+        try {
+          let expression = screen.value.replace(/×/g, '*');
+          let result = eval(expression);
+          
+          if (typeof result === 'number') {
+            result = parseFloat(result.toFixed(2));
+          }
+          
+          screen.value = result;
+
+          const cashInput = document.getElementById('cashReceivedMobile') || 
+                          document.getElementById('cashReceived');
+          if (cashInput) {
+            cashInput.value = result;
+            cashInput.dispatchEvent(new Event('input'));
+          }
+        } catch (e) {
+          screen.value = 'Ошибка';
+          setTimeout(clearCalc, 1000);
+        }
+      };
+
+      // Инициализация калькулятора при загрузке
+      document.addEventListener('DOMContentLoaded', function() {
+        // Скрываем калькулятор при инициализации
+        const calculator = document.getElementById('calculator');
+        if (calculator) {
+          calculator.classList.remove('open');
+        }
+
+        // Обработчики для расчета сдачи
+        const mobileInput = document.getElementById('cashReceivedMobile');
+        const desktopInput = document.getElementById('cashReceived');
+        const mobileChangeView = document.getElementById('changeViewMobile');
+        const desktopChangeView = document.getElementById('changeView');
+        
+        function calculateChange(input, display) {
+          const total = parseFloat(display.dataset.total) || 0;
+          const received = parseFloat(input.value) || 0;
+          const change = received - total;
+          display.textContent = `Сдача: ${change.toFixed(2)} ₽`;
+        }
+
+        if (mobileInput && mobileChangeView) {
+          mobileInput.addEventListener('input', function() {
+            calculateChange(mobileInput, mobileChangeView);
+          });
+        }
+
+        if (desktopInput && desktopChangeView) {
+          desktopInput.addEventListener('input', function() {
+            calculateChange(desktopInput, desktopChangeView);
+          });
+        }
+      });
+    </script>
+  </div>
+  {% endif %}
+
+  {% if tab != 'cart' %}
+  <p class="muted">Все цены указаны в ₽.</p>
+  <div class="only-desktop">
+  <table class="table">
+    <thead>
+      <tr>
+        <th class="col-id">ID</th>
+        <th>Наименование</th>
+        <th class="col-img">Изобр.</th>
+        <th>Цена, ₽</th>
+        <th>Остаток</th>
+        <th>Действия</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% if products and products|length > 0 %}
+        {% for p in products %}
+        <tr class="{% if p.stock_qty <= 0 %}low{% elif p.stock_qty <= 2 %}low{% endif %}">
+          <td class="col-id">{{ p.id }}</td>
+          <td>{{ p.name }}</td>
+          <td class="col-img">{% if p.image_url %}<img src="{{ p.image_url }}" alt="img" class="pos-thumb" style="width:40px;height:40px;object-fit:cover;border-radius:8px" onerror="this.style.display='none'">{% else %}-{% endif %}</td>
+          <td class="num">{{ "%.2f"|format(p.base_price) }} ₽</td>
+          <td class="num">{{ p.stock_qty }}</td>
+          <td>
+            <div class="row-actions" style="display:flex; gap:8px; flex-wrap:nowrap; align-items:center">
+            <form method="post" class="form-inline" style="display:flex; gap:8px; margin:0">
+              {{ csrf_field() }}
+              <input type="hidden" name="product_id" value="{{ p.id }}">
+              <input class="qty" 
+                     type="number" 
+                     name="quantity" 
+                     value="1" 
+                     min="1" 
+                     max="{{ p.stock_qty }}"
+                     style="width:60px"
+                     {% if p.stock_qty <= 0 %}disabled{% endif %}>
+              
+              <div class="only-desktop discount-controls" style="display:flex; gap:8px">
+                <select name="discount_type">
+                  <option value="">Без скидки</option>
+                  <option value="percent">Скидка %</option>
+                  <option value="fixed">Скидка ₽</option>
+                </select>
+                <input class="disc-val" 
+                       type="number" 
+                       step="0.01" 
+                       name="discount_value" 
+                       placeholder="Значение"
+                       style="width:80px">
+              </div>
+              
+              <div class="action-buttons" style="display:flex; gap:4px">
+                <button type="submit" 
+                        class="btn small" 
+                        formaction="{{ url_for('pos_cart_add') }}" 
+                        formmethod="post"
+                        {% if p.stock_qty <= 0 %}disabled title="Нет в наличии"{% endif %}>
+                  В корзину
+                </button>
+                <button type="submit" 
+                        class="btn small" 
+                        formaction="{{ url_for('pos') }}" 
+                        formmethod="post" 
+                        {% if p.stock_qty <= 0 %}disabled title="Нет в наличии"{% endif %}>
+                  Продать
+                </button>
+              </div>
+            </form>
+            <!-- Быстрая продажа для мобильных: +1 без скидки -->
+            <form method="post" action="{{ url_for('pos_return') }}" class="form-inline" style="display:flex; gap:8px; margin:0">
+              {{ csrf_field() }}
+              <input type="hidden" name="product_id" value="{{ p.id }}">
+              <input class="qty" type="number" name="quantity" value="1" min="1" style="width:60px">
+              <input class="note" type="text" name="note" placeholder="Комментарий (необязательно)">
+              <button type="submit" class="btn danger small">Возврат</button>
+            </form>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      {% else %}
+        <tr><td colspan="6" class="muted">Ничего не найдено. Измените запрос.</td></tr>
+      {% endif %}
+    </tbody>
+  </table>
+  </div>
+  <div class="mobile-list only-mobile">
+    {% if products and products|length > 0 %}
+      {% for p in products %}
+      <div class="mi {% if p.stock_qty <= 0 %}mi-out{% endif %}">
+        <div class="mi-left">
+          {% if p.image_url %}
+            <img src="{{ p.image_url }}" alt="img" class="pos-thumb">
+          {% else %}
+            <div class="mi-placeholder">{{ p.name[:1] }}</div>
+          {% endif %}
+        </div>
+        <div class="mi-mid">
+          <div class="mi-name">{{ p.name }}</div>
+          <div class="mi-meta">{{ "%.2f"|format(p.base_price) }} руб. | Остаток: {{ p.stock_qty }}</div>
+        </div>
+        <div class="mi-actions">
+          <form method="post" action="{{ url_for('pos_cart_add') }}" class="form-inline">
+            {{ csrf_field() }}
+            <input type="hidden" name="product_id" value="{{ p.id }}">
+            <input type="number" name="quantity" value="1" min="1" max="{{ p.stock_qty }}" 
+                   class="qty" style="width:60px" {% if p.stock_qty <= 0 %}disabled{% endif %}>
+            <button type="submit" class="btn" {% if p.stock_qty <= 0 %}disabled title="Нет в наличии"{% endif %}>
+              В корзину
+            </button>
+          </form>
+          <form method="post" action="{{ url_for('pos') }}" class="form-inline">
+            {{ csrf_field() }}
+            <input type="hidden" name="product_id" value="{{ p.id }}">
+            <input type="hidden" name="quantity" value="1">
+            <button type="submit" class="btn" {% if p.stock_qty <= 0 %}disabled title="Нет в наличии"{% endif %}>
+              Продать
+            </button>
+          </form>
+        </div>
+      </div>
+      {% endfor %}
+    {% else %}
+      <div class="muted" style="padding:8px 0">Ничего не найдено. Измените запрос.</div>
+    {% endif %}
+  </div>
+  {% endif %}
+</section>
+<script>
+(function(){
+  // Simple lightbox for POS product images
+  function ensureLightbox(){
+    var lb = document.getElementById('lightbox');
+    if (!lb){
+      lb = document.createElement('div');
+      lb.id = 'lightbox';
+      lb.className = 'lightbox';
+      lb.innerHTML = '<img alt="preview">';
+      lb.addEventListener('click', function(){ lb.classList.remove('open'); });
+      document.body.appendChild(lb);
+    }
+    return lb;
+  }
+  function openLightbox(src){
+    var lb = ensureLightbox();
+    var img = lb.querySelector('img');
+    img.src = src;
+    lb.classList.add('open');
+  }
+  document.addEventListener('click', function(e){
+    var t = e.target;
+    if (t && t.classList && t.classList.contains('pos-thumb')){
+      var src = t.getAttribute('src');
+      if (src){
+        openLightbox(src);
+        e.preventDefault();
+      }
+    }
+  });
+})();
+</script>
+{% endblock %}
+
+

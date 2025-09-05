@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}Предпросмотр импорта{% endblock %}
+{% block content %}
+<section class="panel">
+  <div class="panel-header">
+    <h2>Предпросмотр импорта</h2>
+    <div class="muted">Файл: {{ ext[1:]|upper }} • Всего строк: {{ total }} • Будет добавлено: {{ add_count }} • Обновлено: {{ upd_count }} • Пропущено: {{ skip_count }}</div>
+  </div>
+
+  <form method="post" action="{{ url_for('admin_products_import_apply') }}">
+    {{ csrf_field() }}
+    <input type="hidden" name="token" value="{{ token }}">
+    <input type="hidden" name="update_if_exists" value="{{ update_if_exists }}">
+    <button type="submit" class="btn">Импортировать</button>
+    <a href="{{ url_for('admin_products') }}" class="btn secondary">Отмена</a>
+  </form>
+
+  <h3 style="margin-top:16px;">Первые 50 строк</h3>
+  <div class="table-scroll">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Наименование</th>
+          <th>SKU</th>
+          <th>Штрихкод</th>
+          <th>Себестоимость</th>
+          <th>Цена продажи</th>
+          <th>Остаток</th>
+          <th>Изображение</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in sample %}
+        <tr>
+          <td>{{ r.name }}</td>
+          <td>{{ r.sku or '-' }}</td>
+          <td>{{ r.barcode or '-' }}</td>
+          <td class="num">{{ r.cost_price if r.cost_price is not none else '-' }}</td>
+          <td class="num">{{ r.base_price if r.base_price is not none else '-' }}</td>
+          <td class="num">{{ r.stock_qty if r.stock_qty is not none else '-' }}</td>
+          <td>{% if r.image_url %}<a href="{{ r.image_url }}" target="_blank">ссылка</a>{% else %}-{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <form method="post" action="{{ url_for('admin_products_import_apply') }}" style="margin-top:16px;">
+    {{ csrf_field() }}
+    <input type="hidden" name="token" value="{{ token }}">
+    <input type="hidden" name="update_if_exists" value="{{ update_if_exists }}">
+    <button type="submit" class="btn">Импортировать</button>
+    <a href="{{ url_for('admin_products') }}" class="btn secondary">Отмена</a>
+  </form>
+</section>
+{% endblock %}

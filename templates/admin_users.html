@@ -1,0 +1,72 @@
+﻿{% extends "base.html" %}
+{% block title %}Учетные записи{% endblock %}
+{% block content %}
+<section class="panel">
+  <div class="panel-header">
+    <h2>Учетные записи <span class="badge">Всего: {{ users|length }}</span></h2>
+  </div>
+
+  <details open>
+    <summary>Создать нового пользователя</summary>
+    <form method="post" class="form-grid" style="margin-top:8px">
+      {{ csrf_field() }}
+      <label>Имя пользователя
+        <input type="text" name="username" required>
+      </label>
+      <label>Пароль
+        <input type="password" name="password" required>
+      </label>
+      <label>Роль
+        <select name="role">
+          <option value="cashier">cashier</option>
+          <option value="admin">admin</option>
+        </select>
+      </label>
+      <div class="fg-actions">
+        <button type="submit" class="btn">Создать</button>
+      </div>
+    </form>
+  </details>
+
+  <table class="table">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Имя</th>
+        <th>Роль</th>
+        <th>Действия</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for u in users %}
+      <tr>
+        <td>{{ u.id }}</td>
+        <td>{{ u.username }}</td>
+        <td>{{ u.role }}</td>
+        <td>
+          <div class="form-inline">
+            <form method="post" action="{{ url_for('admin_users_update_role', uid=u.id) }}">
+              {{ csrf_field() }}
+              <select name="role">
+                <option value="cashier" {% if u.role=='cashier' %}selected{% endif %}>cashier</option>
+                <option value="admin" {% if u.role=='admin' %}selected{% endif %}>admin</option>
+              </select>
+              <button type="submit" class="btn small">Сменить роль</button>
+            </form>
+            <form method="post" action="{{ url_for('admin_users_update_password', uid=u.id) }}">
+              {{ csrf_field() }}
+              <input type="password" name="password" placeholder="Новый пароль" required>
+              <button type="submit" class="btn small">Сменить пароль</button>
+            </form>
+            <form method="post" action="{{ url_for('admin_users_delete', uid=u.id) }}" onsubmit="return confirm('Удалить учетную запись {{ u.username }}?')">
+              {{ csrf_field() }}
+              <button type="submit" class="btn danger small">Удалить</button>
+            </form>
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

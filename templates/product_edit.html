@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Правка товара{% endblock %}
+{% block content %}
+<section class="panel narrow">
+  <form method="post" class="form-grid">
+    {{ csrf_field() }}
+    <label>Наименование
+      <input type="text" name="name" value="{{ p.name }}" required>
+    </label>
+    <label>Ссылка на изображение
+      <input type="url" name="image_url" value="{{ p.image_url or '' }}">
+    </label>
+    <label>Себестоимость
+      <input type="number" step="0.01" name="cost_price" value="{{ '%.2f'|format(p.cost_price) }}">
+    </label>
+    <label>Цена продажи
+      <input type="number" step="0.01" name="base_price" value="{{ '%.2f'|format(p.base_price) }}">
+    </label>
+    <label>Количество
+      <input type="number" step="1" name="stock_qty" value="{{ p.stock_qty }}">
+    </label>
+
+    <div class="form-inline">
+      <a class="btn small" href="{{ url_for('admin_products') }}">Назад</a>
+      <button type="submit" class="btn">Сохранить</button>
+    </div>
+  </form>
+  
+</section>
+{% endblock %}
+

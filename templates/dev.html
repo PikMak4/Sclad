@@ -1,0 +1,57 @@
+﻿{% extends "base.html" %}
+{% block title %}Dev — Панель разработчика{% endblock %}
+{% block content %}
+<section class="panel">
+  <div class="panel-header">
+    <h2>Панель разработчика</h2>
+    <div class="inline">
+      <form method="post" action="{{ url_for('admin_dev_backfill') }}">{{ csrf_field() }}<button class="btn small" type="submit">Reindex search</button></form>
+      <form method="post" action="{{ url_for('admin_dev_init') }}" onsubmit="return confirm('Выполнить init_defaults()?')">{{ csrf_field() }}<button class="btn small" type="submit">Init defaults</button></form>
+      <a class="btn small" href="{{ url_for('admin_dev_db') }}">Скачать БД (SQLite)</a>
+    </div>
+  </div>
+
+  <div class="stats">
+    <div class="stat">
+      <div class="stat-title">Версии</div>
+      <div>App: {{ info.version }}</div>
+      <div>Python: {{ info.python }}</div>
+      <div>Flask: {{ info.flask }}</div>
+      <div>SQLAlchemy: {{ info.sqlalchemy }}</div>
+    </div>
+    <div class="stat">
+      <div class="stat-title">База данных</div>
+      <div>URI: {{ info.db_uri }}</div>
+      <div>Путь: {{ info.db_path or '-' }}</div>
+      <div>Размер: {% if info.db_size is not none %}{{ (info.db_size/1024/1024)|round(2) }} МБ{% else %}-{% endif %}</div>
+    </div>
+    <div class="stat">
+      <div class="stat-title">Счетчики</div>
+      <div>Users: {{ counts.users }}</div>
+      <div>Products: {{ counts.products }}</div>
+      <div>Sales: {{ counts.sales }}</div>
+      <div>Rentals: {{ counts.rentals }} (items: {{ counts.rental_items }}, charges: {{ counts.rental_charges }})</div>
+      <div>Logs: {{ counts.logs }}</div>
+    </div>
+  </div>
+
+  <h3>Последние события</h3>
+  <table class="table">
+    <thead><tr><th>Дата/время</th><th>Пользователь</th><th>Действие</th><th>Сущность</th><th>ID</th><th>Описание</th></tr></thead>
+    <tbody>
+      {% for log in logs %}
+  <tr>
+  <td>{{ log.created_at|msk('%Y-%m-%d %H:%M') }}</td>
+        <td>{{ log.user or '-' }}</td>
+        <td>{{ log.action }}</td>
+        <td>{{ log.entity or '-' }}</td>
+        <td>{{ log.entity_id or '-' }}</td>
+        <td>{{ log.description or '-' }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="6" class="muted">Нет записей.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}Вход — Склад + Касса{% endblock %}
+{% block content %}
+<section class="panel narrow">
+  <h2>Вход</h2>
+  <form method="post" class="form-grid">
+    {{ csrf_field() }}
+    <label>Имя пользователя
+      <input type="text" name="username" required autofocus>
+    </label>
+    <label>Пароль
+      <input type="password" name="password" required>
+    </label>
+    <button type="submit" class="btn">Войти</button>
+  </form>
+  </section>
+{% endblock %}

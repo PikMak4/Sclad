@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Журнал действий{% endblock %}
+{% block content %}
+<section class="panel">
+  <div class="panel-header">
+    <h2>Журнал действий</h2>
+    <form method="get" class="inline">
+      <input type="date" name="from" value="{{ date_from }}">
+      <input type="date" name="to" value="{{ date_to }}">
+      <button type="submit" class="btn small">Показать</button>
+      <a class="btn secondary small" href="{{ url_for('admin_activity_export_csv', **{'from': date_from, 'to': date_to} ) }}">Экспорт CSV</a>
+    </form>
+  </div>
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Дата/время</th>
+        <th>Пользователь</th>
+        <th>Действие</th>
+        <th>Сущность</th>
+        <th>ID</th>
+        <th>Описание</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for log in logs %}
+      <tr>
+        <td>{{ log.created_at|msk('%Y-%m-%d %H:%M') }}</td>
+        <td>{{ log.user or '-' }}</td>
+        <td>{{ log.action }}</td>
+        <td>{{ log.entity or '-' }}</td>
+        <td>{{ log.entity_id or '-' }}</td>
+        <td>{{ log.description or '-' }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="6" class="muted">Нет записей.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

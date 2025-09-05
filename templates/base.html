@@ -1,0 +1,74 @@
+﻿<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Склад + Касса{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+  <meta name="theme-color" content="#0b1020">
+  {% block head %}{% endblock %}
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+</head>
+<body>
+  <header class="container header">
+    <div class="brand"><a href="{{ url_for('index') }}">Склад + Касса</a> <span class="chip">{{ VERSION }}</span></div>
+    <nav>
+      {% if current_user.is_authenticated %}
+        <a href="{{ url_for('pos') }}">Касса</a>
+        <a href="{{ url_for('rental') }}">Аренда</a>
+        {% if current_user.role == 'admin' %}
+          <a href="{{ url_for('admin_products') }}">Склад</a>
+          <a href="{{ url_for('admin_reports') }}">Отчеты</a>
+          <a href="{{ url_for('admin_finance') }}">Финансы</a>
+          {% set act_link = safe_url_for('admin_activity') %}{% if act_link %}<a href="{{ act_link }}">Журнал действий</a>{% endif %}
+          <a href="{{ url_for('admin_users') }}">Учетные записи</a>
+        {% endif %}
+        <span class="user">Пользователь: {{ current_user.username }} ({{ current_user.role }})</span>
+        <a href="{{ url_for('logout') }}" class="btn small">Выход</a>
+      {% else %}
+        <a href="{{ url_for('login') }}" class="btn small">Вход</a>
+      {% endif %}
+    </nav>
+  </header>
+
+  <main class="container">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="flash">
+          {% for category, message in messages %}
+            <div class="flash-item {{ category }}">{{ message }}</div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+    {% block content %}{% endblock %}
+  </main>
+
+<script>
+// Auto-inject CSRF token into every POST form
+document.addEventListener('submit', function (e) {
+  const form = e.target;
+  if (form && form.tagName === 'FORM' && (form.method || '').toLowerCase() === 'post') {
+    if (!form.querySelector('input[name="csrf_token"]')) {
+      const meta = document.querySelector('meta[name="csrf-token"]');
+      if (meta) {
+        const token = meta.getAttribute('content');
+        if (token) {
+          const inp = document.createElement('input');
+          inp.type = 'hidden';
+          inp.name = 'csrf_token';
+          inp.value = token;
+          form.appendChild(inp);
+        }
+      }
+    }
+  }
+}, true);
+</script>
+
+<footer style="text-align: center; padding: 20px; margin-top: 40px; border-top: 1px solid #eee; color: #666;">
+  © 2025 Adam's. Все права защищены.
+</footer>
+
+</body>
+</html>

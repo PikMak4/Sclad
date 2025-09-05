@@ -1,0 +1,26 @@
+﻿{% extends "base.html" %}
+{% block title %}Главная — Склад + Касса{% endblock %}
+{% block content %}
+<section class="panel">
+  <h1>Добро пожаловать!</h1>
+  <div class="only-desktop">
+    <ul>
+      <li><a href="{{ url_for('pos') }}">Касса</a> — продажи и возвраты, быстрый поиск по товарам.</li>
+      {% if current_user.role == 'admin' %}
+      <li><a href="{{ url_for('admin_products') }}">Склад</a> — управление товарами, импорт из Excel/CSV.</li>
+      <li><a href="{{ url_for('admin_reports') }}">Отчеты</a> — продажи и прибыль по датам.</li>
+      <li><a href="{{ url_for('admin_finance') }}">Финансы</a> — оборот и стоимость остатков.</li>
+      {% endif %}
+    </ul>
+  </div>
+  <div class="only-mobile" style="display:flex; gap:10px; flex-wrap:wrap; margin-top:8px">
+    <a class="btn" href="{{ url_for('pos') }}" style="flex:1 1 45%">Касса</a>
+    <a class="btn" href="{{ url_for('rental') }}" style="flex:1 1 45%">Аренда</a>
+    {% if current_user.role == 'admin' %}
+    <a class="btn" href="{{ url_for('admin_products') }}" style="flex:1 1 45%">Склад</a>
+    <a class="btn" href="{{ url_for('admin_finance') }}" style="flex:1 1 45%">Финансы</a>
+    {% endif %}
+  </div>
+  <p class="muted">Подсказка: ищите по названию или добавляйте в корзину для комплектаций. Все цены в ₽.</p>
+  </section>
+{% endblock %}

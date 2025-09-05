@@ -1,0 +1,190 @@
+﻿{% extends "base.html" %}
+{% block title %}Аренда — Оформление{% endblock %}
+{% block content %}
+<section class="panel">
+  <div class="panel-header">
+    <h2>Аренда</h2>
+  </div>
+
+  <div class="stats">
+    <div class="stat">
+      <div class="stat-title">Активных аренд</div>
+      <div class="stat-value">{{ active|length }}</div>
+    </div>
+    <div class="stat">
+      <div class="stat-title">Сумма активных, ₽</div>
+      <div class="stat-value">{{ (active|map(attribute='total_price')|select|sum)|round(2) }}</div>
+    </div>
+  </div>
+
+  <details open>
+    <summary>Оформить новую аренду</summary>
+    <form method="post" action="{{ url_for('rental_start') }}" class="form-grid">
+      {{ csrf_field() }}
+      <label>Позиция
+        <select name="item_id" required>
+          <option value="">Выберите</option>
+          {% for it in items %}
+            <option value="{{ it.id }}">{{ it.name }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label>ФИО арендатора
+        <input type="text" name="renter_name" placeholder="Иванов Иван Иванович">
+      </label>
+      <label>Телефон арендатора
+        <input type="tel" name="phone" placeholder="+7...">
+      </label>
+      <label>Сумма (первая оплата)
+        <input type="text" name="amount" inputmode="decimal" placeholder="0.00" required>
+      </label>
+      <label>Время начала (необязательно)
+        <input type="datetime-local" name="started_at">
+      </label>
+            <label>Комментарий (необязательно)
+        <input type="text" name="comment" placeholder="Например: без HDMI, с сумкой">
+      </label>
+      <div class="fg-actions">
+        <button type="submit" class="btn">Оформить</button>
+      </div>
+    </form>
+  </details>
+
+  <details>
+    <summary>Открыть карточку позиции</summary>
+    <form method="get" action="{{ url_for('rental_item_pick') }}" class="form-inline">
+      <select name="item_id" required>
+        <option value="">Выберите</option>
+        {% for it in items %}
+          <option value="{{ it.id }}">{{ it.name }}</option>
+        {% endfor %}
+      </select>
+      <button type="submit" class="btn">Открыть</button>
+    </form>
+  </details>
+
+  <h3>Активные аренды</h3>
+  <table class="table" style="white-space:nowrap">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Позиция</th>
+        <th>Арендатор</th>
+        <th>Телефон</th>
+        <th>Комментарий</th>
+        <th>Начало</th>
+        <th>Сумма</th>
+        <th>Действия</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% if active %}
+        {% for r in active %}
+        <tr>
+          <td>{{ r.id }}</td>
+          <td>{{ r.item.name }}</td>
+          <td>{{ r.renter_name or '-' }}</td>
+          <td>{{ r.renter_phone or '-' }}</td>
+          <td>
+            <div style="min-width:200px">
+              {{ r.comment or '-' }}
+              <form method="post" action="{{ url_for('rental_comment', rid=r.id) }}" class="inline" style="margin-left:8px; display:inline-block;">
+                {{ csrf_field() }}
+                <input type="text" name="comment" value="{{ r.comment or '' }}" size="14" maxlength="200">
+                <button type="submit" class="btn small">Сохранить</button>
+              </form>
+            </div>
+          </td>
+          <td>{{ r.started_at|msk('%d.%m.%Y %H:%M') if r.started_at else '-' }}</td>
+          <td class="num">
+            {{ "%.2f"|format(r.total_price or 0) }}
+            <details>
+              <summary>Платежи</summary>
+              <div style="position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #fff; border: 1px solid #ccc; padding: 15px; box-shadow: 0 2px 8px rgba(0,0,0,0.3); z-index: 1000; width: 90%; max-width: 400px; text-align: left; border-radius: 4px;">
+                <h4 style="margin: 0 0 10px 0; padding-bottom: 10px; border-bottom: 2px solid #eee;">История платежей</h4>
+                <div style="max-height: 60vh; overflow-y: auto;">
+                  <ul class="list" style="margin: 0; padding: 0; list-style: none;">
+                    {% for c in r.charges %}
+                      <li style="margin: 8px 0; color: #000; padding: 8px; border-bottom: 1px solid #eee; white-space: normal; line-height: 1.4; background: #f9f9f9; border-radius: 3px;">
+                        <div style="font-weight: bold;">{{ c.created_at|msk('%d.%m.%Y %H:%M') }}</div>
+                        <div>{{ c.label or 'Оплата' }}: {{ "%.2f"|format(c.amount) }} ₽</div>
+                      </li>
+                    {% endfor %}
+                  </ul>
+                </div>
+                <div style="margin-top: 15px; text-align: right;">
+                  <button onclick="this.closest('details').removeAttribute('open')" class="btn small" style="min-width: 100px;">Закрыть</button>
+                </div>
+              </div>
+            </details>
+          </td>
+          <td style="white-space:nowrap">
+            <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center">
+              <form method="post" action="{{ url_for('rental_extend', rid=r.id) }}" class="form-inline" style="margin:0">
+                {{ csrf_field() }}
+                <input type="text" name="amount" inputmode="decimal" placeholder="Сумма продления" style="width:100px">
+                <button type="submit" class="btn small">Продлить</button>
+              </form>
+              <form method="post" action="{{ url_for('rental_return', rid=r.id) }}" class="form-inline" style="margin:0" onsubmit="return confirm('Закрыть аренду {{ r.item.name }}?')">
+                {{ csrf_field() }}
+                <button type="submit" class="btn small">Закрыть</button>
+              </form>
+              {% if current_user.role == 'admin' %}
+              <form method="post" action="{{ url_for('rental_delete', rid=r.id) }}" class="form-inline" style="margin:0" onsubmit="return confirm('Удалить аренду #{{ r.id }} без учета в статистике?')">
+                {{ csrf_field() }}
+                <button type="submit" class="btn danger small">Удалить</button>
+              </form>
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      {% else %}
+        <tr><td colspan="6" class="muted">Нет активных аренд.</td></tr>
+      {% endif %}
+    </tbody>
+  </table>
+
+  <h3>Недавние закрытые</h3>
+  <table class="table">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Позиция</th>
+        <th>Арендатор</th>
+        <th>Телефон</th>
+        <th>Комментарий</th>
+        <th>Начало</th>
+        <th>Закрыто</th>
+        <th>Итого</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% if recent_closed %}
+        {% for r in recent_closed %}
+        <tr>
+          <td>{{ r.id }}</td>
+          <td>{{ r.item.name }}</td>
+          <td>{{ r.renter_name or '-' }}</td>
+          <td>{{ r.renter_phone or '-' }}</td>
+          <td>{{ r.comment or '-' }}</td>
+          <td>{{ r.started_at|msk('%d.%m.%Y %H:%M') if r.started_at else '-' }}</td>
+          <td>{{ r.returned_at|msk('%d.%m.%Y %H:%M') if r.returned_at else '-' }}</td>
+          <td class="num">{{ "%.2f"|format(r.total_price or 0) }}</td>
+          {% if current_user.role == 'admin' %}
+          <td style="white-space:nowrap">
+            <form method="post" action="{{ url_for('rental_delete', rid=r.id) }}" class="form-inline" style="margin:0" onsubmit="return confirm('Удалить аренду #{{ r.id }}?')">
+              {{ csrf_field() }}
+              <button type="submit" class="btn danger small">Удалить</button>
+            </form>
+          </td>
+          {% endif %}
+        </tr>
+        {% endfor %}
+      {% else %}
+        <tr><td colspan="6" class="muted">Пока ничего.</td></tr>
+      {% endif %}
+    </tbody>
+  </table>
+</section>
+{% endblock %}

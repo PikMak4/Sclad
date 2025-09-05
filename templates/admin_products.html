@@ -1,0 +1,237 @@
+{% extends "base.html" %}
+{% block title %}Склад — Управление{% endblock %}
+{% block content %}
+<section class="panel">
+  <div class="panel-header">
+    <h2>Склад <span class="badge">Всего: {{ products|length }}</span></h2>
+    
+    <!-- Мобильный поиск -->
+    <form method="get" class="stock-search only-mobile">
+      <div class="form-inline">
+        <input type="text" name="q" placeholder="Поиск по названию" value="{{ q }}">
+        <button type="submit" class="btn">Найти</button>
+      </div>
+    </form>
+    
+    <!-- Десктопный поиск -->
+    <form method="get" class="inline only-desktop">
+      <input type="text" name="q" placeholder="Поиск по названию" value="{{ q }}">
+      <label class="inline" style="align-items:center;gap:6px;">
+        <input type="checkbox" name="archived" value="1" {% if show_archived %}checked{% endif %} onchange="this.form.submit()"> Показать архив
+      </label>
+      <button type="submit" class="btn small">Искать</button>
+    </form>
+    
+    <!-- Мобильные фильтры -->
+    <div class="stock-filters only-mobile">
+      <label class="inline" style="align-items:center;gap:6px;">
+        <input type="checkbox" name="archived" value="1" {% if show_archived %}checked{% endif %} onchange="document.querySelector('.stock-search').submit()"> Архив
+      </label>
+    </div>
+  </div>
+
+  <div class="inline" style="margin-bottom:16px">
+    <a href="{{ url_for('admin_products_export') }}" class="btn secondary">Экспорт в Excel</a>
+  </div>
+
+  <details class="import-box">
+    <summary>Импорт/обновление из Excel/CSV</summary>
+    <form method="post" action="/admin/products/import" enctype="multipart/form-data" class="form-grid">
+      {{ csrf_field() }}
+      <label>Файл (.xlsx, .xls или .csv)
+        <input type="file" name="file" accept=".xlsx,.xls,.csv" required>
+      </label>
+      <label class="inline" style="align-items:center;gap:8px;">
+        <input type="checkbox" name="update_if_exists" value="1">
+        Обновлять существующие записи (по коду/названию)
+      </label>
+      <div class="form-inline">
+        <button type="submit" class="btn secondary" formaction="{{ url_for('admin_products_import_preview') }}">Предпросмотр</button>
+        <a class="btn small" href="/admin/products/import/template">Скачать шаблон CSV</a>
+        <button type="submit" class="btn">Загрузить</button>
+      </div>
+      <p class="muted">Поддерживаемые поля: <code>name, cost_price, base_price, stock_qty, image_url</code>.</p>
+    </form>
+  </details>
+
+  <details class="import-box">
+    <summary>Загрузка из локального файла отчета (report-Stock-*.xls)</summary>
+    <form method="post" action="/admin/products/import/local" class="form-inline">
+      {{ csrf_field() }}
+      <button type="submit" class="btn">Загрузить с диска</button>
+    </form>
+  </details>
+
+  <form method="post" action="{{ url_for('admin_products_add') }}" class="form-grid form-add" id="addProductForm">
+    {{ csrf_field() }}
+    <div class="fg-col">
+      <label>Наименование
+        <input type="text" name="name" placeholder="Например: PS5 Digital" required>
+      </label>
+    </div>
+
+    <div class="fg-col span-2">
+      <label>Ссылка на изображение
+        <input type="url" name="image_url" placeholder="https://...">
+      </label>
+    </div>
+
+    <div class="fg-col">
+      <label>Себестоимость
+        <input type="text" name="cost_price" inputmode="decimal" placeholder="0.00">
+      </label>
+    </div>
+    <div class="fg-col">
+      <label>Цена продажи
+        <input type="text" name="base_price" inputmode="decimal" placeholder="0.00">
+      </label>
+    </div>
+
+    <div class="fg-col">
+      <label>Количество на складе
+        <input type="number" name="stock_qty" step="1" min="0" value="0">
+      </label>
+    </div>
+
+    <div class="fg-actions">
+      <button type="submit" class="btn">Добавить</button>
+    </div>
+  </form>
+
+  <script>
+  (function(){
+    const form = document.getElementById('addProductForm');
+    if (!form) return;
+    form.addEventListener('submit', function(){
+      ['cost_price','base_price'].forEach(function(n){
+        const el = form.querySelector(`[name="${n}"]`);
+        if (el && el.value) {
+          el.value = el.value.replace(',', '.').replace(/\s+/g,'');
+        }
+      });
+    });
+  })();
+  </script>
+
+  <!-- Десктопная таблица -->
+  <table class="table only-desktop">
+    <thead>
+      <tr>
+        <th class="col-id">ID</th>
+        <th>Наименование</th>
+        <th class="col-img">Изобр.</th>
+        <th>Себестоимость</th>
+        <th>Цена</th>
+        <th>Остаток</th>
+        <th>Статус</th>
+        <th>Действия</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% if products and products|length > 0 %}
+        {% for p in products %}
+        <tr>
+          <td class="col-id">{{ p.id }}</td>
+          <td>{{ p.name }}</td>
+          <td class="col-img">{% if p.image_url %}<img src="{{ p.image_url }}" alt="img" style="width:40px;height:40px;object-fit:cover;border-radius:8px">{% else %}-{% endif %}</td>
+          <td class="num">{{ "%.2f"|format(p.cost_price) }}</td>
+          <td class="num">{{ "%.2f"|format(p.base_price) }}</td>
+          <td class="num">{{ p.stock_qty }}</td>
+          <td>{% if p.is_archived %}<span class="badge">Архив</span>{% else %}<span class="badge">Активен</span>{% endif %}</td>
+          <td>
+            <div class="form-inline">
+              <form method="post" action="{{ url_for('admin_products_stock_dec', pid=p.id) }}">
+                {{ csrf_field() }}
+                <input type="hidden" name="step" value="1">
+                <button type="submit" class="btn small">-1</button>
+              </form>
+              <form method="post" action="{{ url_for('admin_products_stock_inc', pid=p.id) }}">
+                {{ csrf_field() }}
+                <input type="hidden" name="step" value="1">
+                <button type="submit" class="btn small">+1</button>
+              </form>
+              <a class="btn small" href="{{ url_for('admin_product_edit', pid=p.id) }}">Править</a>
+              {% if not p.is_archived %}
+                <form method="post" action="{{ url_for('admin_products_archive', pid=p.id) }}" onsubmit="return confirm('Отправить в архив товар {{ p.name }}?')">
+                  {{ csrf_field() }}
+                  <button type="submit" class="btn small">В архив</button>
+                </form>
+              {% else %}
+                <form method="post" action="{{ url_for('admin_products_unarchive', pid=p.id) }}" onsubmit="return confirm('Вернуть из архива товар {{ p.name }}?')">
+                  {{ csrf_field() }}
+                  <button type="submit" class="btn small">Разарх.</button>
+                </form>
+              {% endif %}
+              <form method="post" action="{{ url_for('admin_products_delete', pid=p.id) }}" onsubmit="return confirm('Удалить товар {{ p.name }}? Если есть продажи, он будет автоматически архивирован.')">
+                {{ csrf_field() }}
+                <button type="submit" class="btn danger small">Удалить</button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      {% else %}
+        <tr><td colspan="8" class="muted">Товары не найдены.</td></tr>
+      {% endif %}
+    </tbody>
+  </table>
+
+  <!-- Мобильный список -->
+  <div class="mobile-list only-mobile">
+    {% if products and products|length > 0 %}
+      {% for p in products %}
+      <div class="mi{% if p.is_archived %} mi-out{% endif %}">
+        <div class="mi-top">
+          <div class="mi-left">
+            {% if p.image_url %}
+              <img src="{{ p.image_url }}" alt="img">
+            {% else %}
+              <div class="mi-placeholder">{{ p.name[:2]|upper }}</div>
+            {% endif %}
+          </div>
+          <div class="mi-mid">
+            <div class="mi-name">{{ p.name }}{% if p.is_archived %}<span class="badge">Архив</span>{% endif %}</div>
+            <div class="mi-meta">
+              <div class="mi-price">{{ "%.2f"|format(p.base_price) }} ₽</div>
+              <div class="mi-stock">Остаток: {{ p.stock_qty }}</div>
+              <div class="mi-status">{% if not p.is_archived %}Активен{% else %}Архив{% endif %}</div>
+            </div>
+          </div>
+        </div>
+        <div class="mi-actions">
+          <form method="post" action="{{ url_for('admin_products_stock_dec', pid=p.id) }}">
+            {{ csrf_field() }}
+            <input type="hidden" name="step" value="1">
+            <button type="submit" class="btn small">-1 шт</button>
+          </form>
+          <form method="post" action="{{ url_for('admin_products_stock_inc', pid=p.id) }}">
+            {{ csrf_field() }}
+            <input type="hidden" name="step" value="1">
+            <button type="submit" class="btn small">+1 шт</button>
+          </form>
+          <a class="btn small" href="{{ url_for('admin_product_edit', pid=p.id) }}">Править</a>
+          {% if not p.is_archived %}
+            <form method="post" action="{{ url_for('admin_products_archive', pid=p.id) }}" onsubmit="return confirm('Отправить в архив товар {{ p.name }}?')">
+              {{ csrf_field() }}
+              <button type="submit" class="btn small">В архив</button>
+            </form>
+          {% else %}
+            <form method="post" action="{{ url_for('admin_products_unarchive', pid=p.id) }}" onsubmit="return confirm('Вернуть из архива товар {{ p.name }}?')">
+              {{ csrf_field() }}
+              <button type="submit" class="btn small">Разарх.</button>
+            </form>
+          {% endif %}
+          <form method="post" action="{{ url_for('admin_products_delete', pid=p.id) }}" onsubmit="return confirm('Удалить товар {{ p.name }}? Если есть продажи, он будет автоматически архивирован.')">
+            {{ csrf_field() }}
+            <button type="submit" class="btn danger small">Удалить</button>
+          </form>
+        </div>
+      </div>
+      {% endfor %}
+    {% else %}
+      <div class="muted" style="text-align:center;padding:20px;">Товары не найдены.</div>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}
+

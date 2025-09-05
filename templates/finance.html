@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+{% block title %}Финансы — Сводка{% endblock %}
+{% block content %}
+<section class="panel">
+  <div class="panel-header">
+    <h2>Финансы</h2>
+    <form method="get" class="inline">
+      <input type="date" name="from" value="{{ date_from }}">
+      <input type="date" name="to" value="{{ date_to }}">
+      <button type="submit" class="btn small">Показать</button>
+    </form>
+  </div>
+
+  <div class="stats">
+    <div class="stat">
+      <div class="stat-title">Оборот (выручка)</div>
+      <div class="stat-value">{{ "%.2f"|format(turnover) }}</div>
+    </div>
+    <div class="stat">
+      <div class="stat-title">Валовая прибыль</div>
+      <div class="stat-value">{{ "%.2f"|format(gross_profit) }}</div>
+    </div>
+    <div class="stat">
+      <div class="stat-title">Маржа</div>
+      <div class="stat-value">{{ "%.2f"|format(gross_margin * 100) }}%</div>
+    </div>
+    <div class="stat">
+      <div class="stat-title">Скидки за период</div>
+      <div class="stat-value">{{ "%.2f"|format(discounts_total) }}</div>
+    </div>
+  </div>
+
+  <div class="stats">
+    <div class="stat">
+      <div class="stat-title">COGS (себестоимость проданных)</div>
+      <div class="stat-value">{{ "%.2f"|format(cogs) }}</div>
+    </div>
+    <div class="stat">
+      <div class="stat-title">Кол-во продаж (строк)</div>
+      <div class="stat-value">{{ sales_count }}</div>
+    </div>
+    <div class="stat">
+      <div class="stat-title">Возвраты (строк)</div>
+      <div class="stat-value">{{ returns_count }}</div>
+    </div>
+    <div class="stat">
+      <div class="stat-title">Средний чек</div>
+      <div class="stat-value">{{ "%.2f"|format(avg_ticket) }}</div>
+    </div>
+  </div>
+
+  <h3>Склад (остатки)</h3>
+  <div class="stats">
+    <div class="stat">
+      <div class="stat-title">Стоимость остатков (розн.)</div>
+      <div class="stat-value">{{ "%.2f"|format(inventory_price) }}</div>
+    </div>
+    <div class="stat">
+      <div class="stat-title">Стоимость остатков (себест.)</div>
+      <div class="stat-value">{{ "%.2f"|format(inventory_cost) }}</div>
+    </div>
+    <div class="stat">
+      <div class="stat-title">Единиц на складе</div>
+      <div class="stat-value">{{ inventory_units }}</div>
+    </div>
+    <div class="stat">
+      <div class="stat-title">Активных товаров</div>
+      <div class="stat-value">{{ inventory_products }}</div>
+    </div>
+  </div>
+
+  <h3>Топ товаров</h3>
+  <div class="stats">
+    <div class="stat">
+      <div class="stat-title">По количеству</div>
+      <div>
+        <table class="table"><tbody>
+          {% for name, qty in top_by_qty %}
+          <tr><td>{{ name }}</td><td class="num">{{ qty }}</td></tr>
+          {% else %}
+          <tr><td class="muted">Нет данных</td></tr>
+          {% endfor %}
+        </tbody></table>
+      </div>
+    </div>
+    <div class="stat">
+      <div class="stat-title">По выручке</div>
+      <div>
+        <table class="table"><tbody>
+          {% for name, total in top_by_rev %}
+          <tr><td>{{ name }}</td><td class="num">{{ "%.2f"|format(total) }}</td></tr>
+          {% else %}
+          <tr><td class="muted">Нет данных</td></tr>
+          {% endfor %}
+        </tbody></table>
+      </div>
+    </div>
+  </div>
+
+  <h3>По кассирам</h3>
+  <table class="table">
+    <thead><tr><th>Кассир</th><th class="num">Выручка</th><th class="num">Прибыль</th></tr></thead>
+    <tbody>
+      {% for row in cashier_rows %}
+      <tr><td>{{ row.cashier or '-' }}</td><td class="num">{{ "%.2f"|format(row.revenue) }}</td><td class="num">{{ "%.2f"|format(row.profit) }}</td></tr>
+      {% else %}
+      <tr><td colspan="3" class="muted">Нет данных</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+</section>
+{% endblock %}
+
+
+  <h3>Последние продажи</h3>
+  <div class="table-scroll">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Дата/время</th>
+          <th>Товар</th>
+          <th>SKU</th>
+          <th class="num">Кол-во</th>
+          <th class="num">Сумма</th>
+          <th>Кассир</th>
+          <th>Действия</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in sales[:100] %}
+        <tr>
+          <td>{{ s.id }}</td>
+          <td>{{ s.created_at|msk('%Y-%m-%d %H:%M') }}</td>
+          <td>{{ s.product.name if s.product else '[удален] #' ~ s.product_id }}</td>
+          <td>{{ s.product.sku if s.product else '-' }}</td>
+          <td class="num">{{ s.quantity }}</td>
+          <td class="num">{{ '%.2f'|format(s.total_price or 0) }}</td>
+          <td>{{ s.cashier or '-' }}</td>
+          <td>
+            <form method="post" action="{{ url_for('admin_sales_delete', sid=s.id) }}"
+                  onsubmit="return confirm('Удалить продажу #{{ s.id }}? Товар будет возвращен на склад.')">
+              {{ csrf_field() }}
+              <button type="submit" class="btn small" style="background:#b91c1c;border-color:#7f1d1d">Удалить</button>
+            </form>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="8" class="muted">Нет продаж за выбранный период</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
